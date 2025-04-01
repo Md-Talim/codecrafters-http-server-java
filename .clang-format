@@ -1,0 +1,8 @@
+---
+BasedOnStyle: Google
+IndentWidth: 4
+---
+Language: Java
+UseTab: Never
+ColumnLimit: 100
+---
