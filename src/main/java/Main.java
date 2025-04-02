@@ -30,6 +30,19 @@ public class Main {
                 if (path.equals("/")) {
                     out.write("HTTP/1.1 200 OK\r\n");
                     out.write("\r\n");
+                } else if (path.startsWith("/echo/")) {
+                    String message = path.substring("/echo/".length());
+
+                    // Status Line
+                    out.write("HTTP/1.1 200 OK\r\n");
+
+                    // Response Headers
+                    out.write("Content-Type: text/plain\r\n");
+                    out.write("Content-Length: " + message.length() + "\r\n");
+                    out.write("\r\n");
+
+                    // Response Body
+                    out.write(message);
                 } else {
                     out.write("HTTP/1.1 404 Not Found\r\n");
                     out.write("\r\n");
