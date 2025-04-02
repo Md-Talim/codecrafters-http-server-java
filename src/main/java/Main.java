@@ -18,6 +18,7 @@ public class Main {
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
 
             String requestLine = in.readLine();
+            System.out.println(requestLine);
             if (requestLine != null) {
                 String[] requestParts = requestLine.split(" ");
                 if (requestParts.length < 2) {
@@ -43,6 +44,25 @@ public class Main {
 
                     // Response Body
                     out.write(message);
+                } else if (path.startsWith("/user-agent")) {
+                    String line;
+                    while ((line = in.readLine()) != null && !line.isEmpty()) {
+                        if (line.startsWith("User-Agent:")) {
+                            String userAgent = line.substring("User-Agent: ".length());
+
+                            // Status Line
+                            out.write("HTTP/1.1 200 OK\r\n");
+
+                            // Response Headers
+                            out.write("Content-Type: text/plain\r\n");
+                            out.write("Content-Length: " + userAgent.length() + "\r\n");
+                            out.write("\r\n");
+
+                            // Response Body
+                            out.write(userAgent);
+                            break;
+                        }
+                    }
                 } else {
                     out.write("HTTP/1.1 404 Not Found\r\n");
                     out.write("\r\n");
