@@ -4,12 +4,17 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 
 public class Main {
     private static final String STATUS_OK = "HTTP/1.1 200 OK";
     private static final String STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found";
+    private static String[] ARGS;
 
     public static void main(String[] args) {
+        ARGS = args;
         int port = 4221;
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
@@ -62,6 +67,21 @@ public class Main {
                     sendResponse(out, STATUS_OK, "text/plain", userAgent);
                     break;
                 }
+            }
+        } else if (path.startsWith("/files/")) {
+            if (ARGS.length < 2) {
+                return;
+            }
+
+            String directory = ARGS[1];
+            String filename = path.substring("/files/".length());
+            Path filePath = Paths.get(directory + filename);
+
+            if (Files.exists(filePath)) {
+                String content = Files.readString(filePath);
+                sendResponse(out, STATUS_OK, "application/octet-stream", content);
+            } else {
+                sendResponse(out, STATUS_NOT_FOUND, null, null);
             }
         } else {
             sendResponse(out, STATUS_NOT_FOUND, null, null);
