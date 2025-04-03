@@ -4,131 +4,63 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
 
 public class Main {
-    private static final String STATUS_OK = "HTTP/1.1 200 OK";
-    private static final String STATUS_CREATED = "HTTP/1.1 201 Created";
-    private static final String STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found";
-    private static String[] ARGS;
-
     public static void main(String[] args) {
-        ARGS = args;
         int port = 4221;
+
+        Router router = new Router();
+        router.addRoute("/", (request) -> {
+            if (request.getPath().equals("/")) {
+                return new HttpResponse(HttpResponse.STATUS_OK, null, null);
+            }
+            return new HttpResponse(HttpResponse.STATUS_NOT_FOUND, null, null);
+        });
+        router.addRoute("/echo/", (request) -> {
+            String message = request.getPath().substring("/echo/".length());
+            return new HttpResponse(HttpResponse.STATUS_OK, HttpResponse.CONTENT_TEXT, message);
+        });
+        router.addRoute("/user-agent", (request) -> {
+            String userAgent = request.getHeaders().get("User-Agent");
+            return new HttpResponse(HttpResponse.STATUS_OK, HttpResponse.CONTENT_TEXT, userAgent);
+        });
+
+        if (args.length >= 2) {
+            router.addRoute("/files/", new FilesHandler(args[1]));
+        }
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             serverSocket.setReuseAddress(true);
             while (true) {
                 Socket clientSocket = serverSocket.accept();
-                new Thread(() -> handleClient(clientSocket)).start();
+                new Thread(() -> handleClient(clientSocket, router)).start();
             }
         } catch (IOException e) {
-            System.out.println("IOException: " + e.getMessage());
+            System.err.println("IOException: " + e.getMessage());
         }
     }
 
-    private static void handleClient(Socket clientSocket) {
+    private static void handleClient(Socket clientSocket, Router router) {
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-            String requestLine = in.readLine();
 
-            if (requestLine != null) {
-                String[] requestParts = requestLine.split(" ");
-                if (requestParts.length >= 2) {
-                    processRequest(requestParts, in, out);
-                }
-            }
-            out.flush();
+            HttpRequest request = new HttpRequest(in);
+            RequestHandler handler = router.getHandler(request.getPath());
+
+            HttpResponse response = (handler != null)
+                    ? handler.handle(request)
+                    : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, null, null);
+
+            response.send(out);
         } catch (IOException e) {
             System.err.println("IOException while handling client: " + e.getMessage());
         } finally {
             try {
                 clientSocket.close();
             } catch (IOException e) {
-                System.out.println("Failed to close client socket: " + e.getMessage());
+                System.err.println("IOException while closing client socket: " + e.getMessage());
             }
-        }
-    }
-
-    private static void processRequest(String[] requestParts, BufferedReader in, PrintWriter out) throws IOException {
-        String method = requestParts[0];
-        String path = requestParts[1];
-
-        if (path.equals("/")) {
-            sendResponse(out, STATUS_OK, null, null);
-        } else if (path.startsWith("/echo/")) {
-            String message = path.substring("/echo/".length());
-            sendResponse(out, STATUS_OK, "text/plain", message);
-        } else if (path.startsWith("/user-agent")) {
-            String line;
-            while ((line = in.readLine()) != null && !line.isEmpty()) {
-                if (line.startsWith("User-Agent:")) {
-                    String userAgent = line.substring("User-Agent: ".length());
-                    sendResponse(out, STATUS_OK, "text/plain", userAgent);
-                    break;
-                }
-            }
-        } else if (path.startsWith("/files/")) {
-            if (ARGS.length < 2) {
-                return;
-            }
-
-            String directory = ARGS[1];
-            String filename = path.substring("/files/".length());
-            Path filePath = Paths.get(directory + filename);
-
-            if (method.equals("POST")) {
-                String line;
-                int contentLength = 0;
-
-                // Read headers to find Content-Length
-                while ((line = in.readLine()) != null && !line.isEmpty()) {
-                    if (line.startsWith("Content-Length:")) {
-                        contentLength = Integer.parseInt(line.substring("Content-Length: ".length()));
-                    }
-                }
-
-                // Read the body based on Content-Length
-                if (contentLength > 0) {
-                    char[] body = new char[contentLength];
-                    in.read(body, 0, contentLength);
-                    String requestBody = new String(body);
-
-                    if (Files.notExists(filePath)) {
-                        Files.writeString(filePath, requestBody);
-                        sendResponse(out, STATUS_CREATED, "text/plain", requestBody);
-                    }
-                }
-            } else if (Files.exists(filePath)) {
-                String content = Files.readString(filePath);
-                sendResponse(out, STATUS_OK, "application/octet-stream", content);
-            } else {
-                sendResponse(out, STATUS_NOT_FOUND, null, null);
-            }
-        } else {
-            sendResponse(out, STATUS_NOT_FOUND, null, null);
-        }
-    }
-
-    private static void sendResponse(PrintWriter out, String status, String contentType, String body) {
-        // Status Line
-        out.write(status + "\r\n");
-
-        // Response Headers
-        if (contentType != null) {
-            out.write("Content-Type: " + contentType + "\r\n");
-        }
-        if (body != null) {
-            out.write("Content-Length: " + body.length() + "\r\n");
-        }
-        out.write("\r\n");
-
-        // Response Body
-        if (body != null) {
-            out.write(body);
         }
     }
 }
