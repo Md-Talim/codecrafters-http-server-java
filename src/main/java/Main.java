@@ -6,6 +6,9 @@ import java.net.ServerSocket;
 import java.net.Socket;
 
 public class Main {
+    private static final String STATUS_OK = "HTTP/1.1 200 OK";
+    private static final String STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found";
+
     public static void main(String[] args) {
         int port = 4221;
 
@@ -29,43 +32,21 @@ public class Main {
                 String path = requestParts[1];
 
                 if (path.equals("/")) {
-                    out.write("HTTP/1.1 200 OK\r\n");
-                    out.write("\r\n");
+                    sendResponse(out, STATUS_OK, null, null);
                 } else if (path.startsWith("/echo/")) {
                     String message = path.substring("/echo/".length());
-
-                    // Status Line
-                    out.write("HTTP/1.1 200 OK\r\n");
-
-                    // Response Headers
-                    out.write("Content-Type: text/plain\r\n");
-                    out.write("Content-Length: " + message.length() + "\r\n");
-                    out.write("\r\n");
-
-                    // Response Body
-                    out.write(message);
+                    sendResponse(out, STATUS_OK, "text/plain", message);
                 } else if (path.startsWith("/user-agent")) {
                     String line;
                     while ((line = in.readLine()) != null && !line.isEmpty()) {
                         if (line.startsWith("User-Agent:")) {
                             String userAgent = line.substring("User-Agent: ".length());
-
-                            // Status Line
-                            out.write("HTTP/1.1 200 OK\r\n");
-
-                            // Response Headers
-                            out.write("Content-Type: text/plain\r\n");
-                            out.write("Content-Length: " + userAgent.length() + "\r\n");
-                            out.write("\r\n");
-
-                            // Response Body
-                            out.write(userAgent);
+                            sendResponse(out, STATUS_OK, "text/plain", userAgent);
                             break;
                         }
                     }
                 } else {
-                    out.write("HTTP/1.1 404 Not Found\r\n");
-                    out.write("\r\n");
+                    sendResponse(out, STATUS_NOT_FOUND, null, null);
                 }
             }
 
@@ -73,6 +54,25 @@ public class Main {
             out.close();
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        }
+    }
+
+    private static void sendResponse(PrintWriter out, String status, String contentType, String body) {
+        // Status Line
+        out.write(status + "\r\n");
+
+        // Response Headers
+        if (contentType != null) {
+            out.write("Content-Type: " + contentType + "\r\n");
+        }
+        if (body != null) {
+            out.write("Content-Length: " + body.length() + "\r\n");
+        }
+        out.write("\r\n");
+
+        // Response Body
+        if (body != null) {
+            out.write(body);
         }
     }
 }
