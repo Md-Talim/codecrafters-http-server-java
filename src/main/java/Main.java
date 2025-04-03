@@ -10,6 +10,7 @@ import java.nio.file.Paths;
 
 public class Main {
     private static final String STATUS_OK = "HTTP/1.1 200 OK";
+    private static final String STATUS_CREATED = "HTTP/1.1 201 Created";
     private static final String STATUS_NOT_FOUND = "HTTP/1.1 404 Not Found";
     private static String[] ARGS;
 
@@ -37,8 +38,7 @@ public class Main {
             if (requestLine != null) {
                 String[] requestParts = requestLine.split(" ");
                 if (requestParts.length >= 2) {
-                    String path = requestParts[1];
-                    processRequest(path, in, out);
+                    processRequest(requestParts, in, out);
                 }
             }
             out.flush();
@@ -53,7 +53,10 @@ public class Main {
         }
     }
 
-    private static void processRequest(String path, BufferedReader in, PrintWriter out) throws IOException {
+    private static void processRequest(String[] requestParts, BufferedReader in, PrintWriter out) throws IOException {
+        String method = requestParts[0];
+        String path = requestParts[1];
+
         if (path.equals("/")) {
             sendResponse(out, STATUS_OK, null, null);
         } else if (path.startsWith("/echo/")) {
@@ -77,7 +80,29 @@ public class Main {
             String filename = path.substring("/files/".length());
             Path filePath = Paths.get(directory + filename);
 
-            if (Files.exists(filePath)) {
+            if (method.equals("POST")) {
+                String line;
+                int contentLength = 0;
+
+                // Read headers to find Content-Length
+                while ((line = in.readLine()) != null && !line.isEmpty()) {
+                    if (line.startsWith("Content-Length:")) {
+                        contentLength = Integer.parseInt(line.substring("Content-Length: ".length()));
+                    }
+                }
+
+                // Read the body based on Content-Length
+                if (contentLength > 0) {
+                    char[] body = new char[contentLength];
+                    in.read(body, 0, contentLength);
+                    String requestBody = new String(body);
+
+                    if (Files.notExists(filePath)) {
+                        Files.writeString(filePath, requestBody);
+                        sendResponse(out, STATUS_CREATED, "text/plain", requestBody);
+                    }
+                }
+            } else if (Files.exists(filePath)) {
                 String content = Files.readString(filePath);
                 sendResponse(out, STATUS_OK, "application/octet-stream", content);
             } else {
