@@ -14,46 +14,57 @@ public class Main {
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             serverSocket.setReuseAddress(true);
-            Socket clientSocket = serverSocket.accept();
-            System.out.println("accepted new connection");
-
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
-
-            String requestLine = in.readLine();
-            System.out.println(requestLine);
-            if (requestLine != null) {
-                String[] requestParts = requestLine.split(" ");
-                if (requestParts.length < 2) {
-                    return;
-                }
-
-                String _ = requestParts[0];
-                String path = requestParts[1];
-
-                if (path.equals("/")) {
-                    sendResponse(out, STATUS_OK, null, null);
-                } else if (path.startsWith("/echo/")) {
-                    String message = path.substring("/echo/".length());
-                    sendResponse(out, STATUS_OK, "text/plain", message);
-                } else if (path.startsWith("/user-agent")) {
-                    String line;
-                    while ((line = in.readLine()) != null && !line.isEmpty()) {
-                        if (line.startsWith("User-Agent:")) {
-                            String userAgent = line.substring("User-Agent: ".length());
-                            sendResponse(out, STATUS_OK, "text/plain", userAgent);
-                            break;
-                        }
-                    }
-                } else {
-                    sendResponse(out, STATUS_NOT_FOUND, null, null);
-                }
+            while (true) {
+                Socket clientSocket = serverSocket.accept();
+                new Thread(() -> handleClient(clientSocket)).start();
             }
-
-            out.flush();
-            out.close();
         } catch (IOException e) {
             System.out.println("IOException: " + e.getMessage());
+        }
+    }
+
+    private static void handleClient(Socket clientSocket) {
+        try {
+            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+            PrintWriter out = new PrintWriter(clientSocket.getOutputStream(), true);
+            String requestLine = in.readLine();
+
+            if (requestLine != null) {
+                String[] requestParts = requestLine.split(" ");
+                if (requestParts.length >= 2) {
+                    String path = requestParts[1];
+                    processRequest(path, in, out);
+                }
+            }
+            out.flush();
+        } catch (IOException e) {
+            System.err.println("IOException while handling client: " + e.getMessage());
+        } finally {
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                System.out.println("Failed to close client socket: " + e.getMessage());
+            }
+        }
+    }
+
+    private static void processRequest(String path, BufferedReader in, PrintWriter out) throws IOException {
+        if (path.equals("/")) {
+            sendResponse(out, STATUS_OK, null, null);
+        } else if (path.startsWith("/echo/")) {
+            String message = path.substring("/echo/".length());
+            sendResponse(out, STATUS_OK, "text/plain", message);
+        } else if (path.startsWith("/user-agent")) {
+            String line;
+            while ((line = in.readLine()) != null && !line.isEmpty()) {
+                if (line.startsWith("User-Agent:")) {
+                    String userAgent = line.substring("User-Agent: ".length());
+                    sendResponse(out, STATUS_OK, "text/plain", userAgent);
+                    break;
+                }
+            }
+        } else {
+            sendResponse(out, STATUS_NOT_FOUND, null, null);
         }
     }
 
