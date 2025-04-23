@@ -40,7 +40,13 @@ public class HttpRequest {
         }
 
         if (headers.containsKey("Accept-Encoding")) {
-            this.compressionScheme = headers.get("Accept-Encoding");
+            String[] encodings = headers.get("Accept-Encoding").trim().split(", ");
+            for (int i = 0; i < encodings.length; i++) {
+                if (encodings[i].equals("gzip")) {
+                    this.compressionScheme = "gzip";
+                    break;
+                }
+            }
         }
     }
 

@@ -52,7 +52,7 @@ public class Main {
                     ? handler.handle(request)
                     : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, null, null);
 
-            if (request.getCompressionScheme() != null && request.getCompressionScheme().equals("gzip")) {
+            if (request.getCompressionScheme() != null) {
                 response.setContentEncoding(request.getCompressionScheme());
             }
 
