@@ -52,6 +52,10 @@ public class Main {
                     ? handler.handle(request)
                     : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, null, null);
 
+            if (request.getCompressionScheme() != null && request.getCompressionScheme().equals("gzip")) {
+                response.setContentEncoding(request.getCompressionScheme());
+            }
+
             response.send(out);
         } catch (IOException e) {
             System.err.println("IOException while handling client: " + e.getMessage());

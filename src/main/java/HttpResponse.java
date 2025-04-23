@@ -3,6 +3,7 @@ import java.io.PrintWriter;
 public class HttpResponse {
     private String status;
     private String contentType;
+    private String contentEncoding;
     private String body;
 
     // Status Codes
@@ -22,6 +23,10 @@ public class HttpResponse {
         this.body = body;
     }
 
+    public void setContentEncoding(String encoding) {
+        this.contentEncoding = encoding;
+    }
+
     public void send(PrintWriter out) {
         // Status Line
         out.write(status + "\r\n");
@@ -32,6 +37,9 @@ public class HttpResponse {
         }
         if (body != null) {
             out.write("Content-Length: " + body.length() + "\r\n");
+        }
+        if (contentEncoding != null) {
+            out.write("Content-Encoding: " + contentEncoding + "\r\n");
         }
         out.write("\r\n");
 

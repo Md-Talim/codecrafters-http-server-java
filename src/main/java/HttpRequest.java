@@ -8,6 +8,7 @@ public class HttpRequest {
     private String path;
     private String body;
     private Map<String, String> headers = new HashMap<>();
+    private String compressionScheme;
 
     HttpRequest(BufferedReader in) throws IOException {
         parseRequest(in);
@@ -37,6 +38,10 @@ public class HttpRequest {
             in.read(bodyChars, 0, contentLength);
             this.body = new String(bodyChars);
         }
+
+        if (headers.containsKey("Accept-Encoding")) {
+            this.compressionScheme = headers.get("Accept-Encoding");
+        }
     }
 
     public String getMethod() {
@@ -53,5 +58,9 @@ public class HttpRequest {
 
     public Map<String, String> getHeaders() {
         return headers;
+    }
+
+    public String getCompressionScheme() {
+        return compressionScheme;
     }
 }
