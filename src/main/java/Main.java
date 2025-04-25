@@ -2,7 +2,6 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.io.PrintWriter;
 import java.net.ServerSocket;
 import java.net.Socket;
 
@@ -10,25 +9,7 @@ public class Main {
     public static void main(String[] args) {
         int port = 4221;
 
-        Router router = new Router();
-        router.addRoute("/", (request) -> {
-            if (request.getPath().equals("/")) {
-                return new HttpResponse(HttpResponse.STATUS_OK, null, null);
-            }
-            return new HttpResponse(HttpResponse.STATUS_NOT_FOUND, null, null);
-        });
-        router.addRoute("/echo/", (request) -> {
-            String message = request.getPath().substring("/echo/".length());
-            return new HttpResponse(HttpResponse.STATUS_OK, HttpResponse.CONTENT_TEXT, message);
-        });
-        router.addRoute("/user-agent", (request) -> {
-            String userAgent = request.getHeaders().get("User-Agent");
-            return new HttpResponse(HttpResponse.STATUS_OK, HttpResponse.CONTENT_TEXT, userAgent);
-        });
-
-        if (args.length >= 2) {
-            router.addRoute("/files/", new FilesHandler(args[1]));
-        }
+        Router router = new Router(args);
 
         try (ServerSocket serverSocket = new ServerSocket(port)) {
             serverSocket.setReuseAddress(true);
@@ -45,21 +26,20 @@ public class Main {
         try {
             BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
             OutputStream os = clientSocket.getOutputStream();
-            PrintWriter out = new PrintWriter(os, true);
 
             HttpRequest request = new HttpRequest(in);
             RequestHandler handler = router.getHandler(request.getPath());
 
             HttpResponse response = (handler != null)
                     ? handler.handle(request)
-                    : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, null, null);
+                    : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, HttpResponse.CONTENT_TEXT, "Not Found");
 
             String compressionScheme = request.getCompressionScheme();
             if (compressionScheme != null) {
                 response.setContentEncoding(compressionScheme);
             }
 
-            response.send(out, os);
+            response.send(os);
         } catch (IOException e) {
             System.err.println("IOException while handling client: " + e.getMessage());
         } finally {

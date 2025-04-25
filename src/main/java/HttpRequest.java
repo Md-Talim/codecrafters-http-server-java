@@ -16,7 +16,7 @@ public class HttpRequest {
 
     private void parseRequest(BufferedReader in) throws IOException {
         String requestLine = in.readLine();
-        if (requestLine != null) {
+        if (requestLine != null && !requestLine.isEmpty()) {
             String[] requestParts = requestLine.split(" ");
             if (requestParts.length >= 2) {
                 this.method = requestParts[0];
