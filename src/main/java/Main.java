@@ -28,14 +28,19 @@ public class Main {
                 BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
                 OutputStream os = clientSocket.getOutputStream()) {
 
+            boolean keepAlive = true;
             while (true) {
                 HttpRequest request;
+
                 try {
                     request = new HttpRequest(in);
 
                     if (request.getMethod() == null) {
                         System.out.println("Client closed connection.");
                         break;
+                    }
+                    if (request.hasCloseConnection()) {
+                        keepAlive = false;
                     }
 
                     RequestHandler handler = router.getHandler(request.getPath());
@@ -47,8 +52,15 @@ public class Main {
                     if (compressionScheme != null) {
                         response.setHeader(HttpHeaders.CONTENT_ENCODING, compressionScheme);
                     }
+                    if (!keepAlive) {
+                        response.setHeader(HttpHeaders.CONNECTION, HttpHeaders.CLOSE);
+                    }
 
                     response.send(os);
+
+                    if (!keepAlive) {
+                        break;
+                    }
                 } catch (SocketException e) {
                     System.out.println(
                             "SocketException reading request (client likeyly disconnected): " + e.getMessage());
