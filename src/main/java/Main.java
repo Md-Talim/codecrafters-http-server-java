@@ -41,11 +41,11 @@ public class Main {
                     RequestHandler handler = router.getHandler(request.getPath());
                     HttpResponse response = (handler != null)
                             ? handler.handle(request)
-                            : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, HttpResponse.CONTENT_TEXT, "Not Found");
+                            : new HttpResponse(HttpStatusCode.NOT_FOUND, HttpStatusCode.NOT_FOUND.getReasonPhrase());
 
                     String compressionScheme = request.getCompressionScheme();
                     if (compressionScheme != null) {
-                        response.setContentEncoding(compressionScheme);
+                        response.setHeader(HttpHeaders.CONTENT_ENCODING, compressionScheme);
                     }
 
                     response.send(os);

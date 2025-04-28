@@ -32,15 +32,15 @@ public class HttpRequest {
             }
         }
 
-        if (headers.containsKey("Content-Length")) {
-            int contentLength = Integer.parseInt(headers.get("Content-Length"));
+        if (headers.containsKey(HttpHeaders.CONTENT_LENGTH)) {
+            int contentLength = Integer.parseInt(headers.get(HttpHeaders.CONTENT_LENGTH));
             char[] bodyChars = new char[contentLength];
             in.read(bodyChars, 0, contentLength);
             this.body = new String(bodyChars);
         }
 
-        if (headers.containsKey("Accept-Encoding")) {
-            String[] encodings = headers.get("Accept-Encoding").trim().split(", ");
+        if (headers.containsKey(HttpHeaders.ACCEPT_ENCODING)) {
+            String[] encodings = headers.get(HttpHeaders.ACCEPT_ENCODING).trim().split(", ");
             for (int i = 0; i < encodings.length; i++) {
                 if (encodings[i].equals("gzip")) {
                     this.compressionScheme = "gzip";
@@ -48,6 +48,11 @@ public class HttpRequest {
                 }
             }
         }
+    }
+
+    public boolean hasCloseConnection() {
+        return headers.containsKey(HttpHeaders.CONNECTION)
+                && headers.get(HttpHeaders.CONNECTION).equals(HttpHeaders.CLOSE);
     }
 
     public String getMethod() {
