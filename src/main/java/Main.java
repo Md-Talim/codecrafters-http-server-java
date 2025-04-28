@@ -4,6 +4,7 @@ import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class Main {
     public static void main(String[] args) {
@@ -23,31 +24,40 @@ public class Main {
     }
 
     private static void handleClient(Socket clientSocket, Router router) {
-        try {
-            BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
-            OutputStream os = clientSocket.getOutputStream();
+        try (clientSocket;
+                BufferedReader in = new BufferedReader(new InputStreamReader(clientSocket.getInputStream()));
+                OutputStream os = clientSocket.getOutputStream()) {
 
-            HttpRequest request = new HttpRequest(in);
-            RequestHandler handler = router.getHandler(request.getPath());
+            while (true) {
+                HttpRequest request;
+                try {
+                    request = new HttpRequest(in);
 
-            HttpResponse response = (handler != null)
-                    ? handler.handle(request)
-                    : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, HttpResponse.CONTENT_TEXT, "Not Found");
+                    if (request.getMethod() == null) {
+                        System.out.println("Client closed connection.");
+                        break;
+                    }
 
-            String compressionScheme = request.getCompressionScheme();
-            if (compressionScheme != null) {
-                response.setContentEncoding(compressionScheme);
+                    RequestHandler handler = router.getHandler(request.getPath());
+                    HttpResponse response = (handler != null)
+                            ? handler.handle(request)
+                            : new HttpResponse(HttpResponse.STATUS_NOT_FOUND, HttpResponse.CONTENT_TEXT, "Not Found");
+
+                    String compressionScheme = request.getCompressionScheme();
+                    if (compressionScheme != null) {
+                        response.setContentEncoding(compressionScheme);
+                    }
+
+                    response.send(os);
+                } catch (SocketException e) {
+                    System.out.println(
+                            "SocketException reading request (client likeyly disconnected): " + e.getMessage());
+                } catch (IOException e) {
+                    System.err.println("IOException reading requesst: " + e.getMessage());
+                }
             }
-
-            response.send(os);
         } catch (IOException e) {
             System.err.println("IOException while handling client: " + e.getMessage());
-        } finally {
-            try {
-                clientSocket.close();
-            } catch (IOException e) {
-                System.err.println("IOException while closing client socket: " + e.getMessage());
-            }
         }
     }
 }
